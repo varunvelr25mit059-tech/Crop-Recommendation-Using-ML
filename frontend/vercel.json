@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://smartcrop-ai-backend-x8f2.onrender.com/api/$1"
+    },
+    {
+      "src": "/[^.]*",
+      "dest": "frontend/index.html",
+      "status": 200
+    }
+  ]
+}
