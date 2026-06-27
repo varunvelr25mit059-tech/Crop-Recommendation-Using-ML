@@ -12,7 +12,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "http://localhost:8000/api/$1"
+      "dest": "https://crop-recommendation-using-ml.onrender.com/api/$1"
     },
     {
       "src": "/[^.]*",
