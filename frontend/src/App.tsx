@@ -1,53 +1,50 @@
 // frontend/src/App.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Sprout, Globe, ArrowRight, Check, Download, RefreshCw, 
-  BookOpen, User, Lock, LogOut, Database, Cpu, TrendingUp, 
+import {
+  Sprout, Globe, ArrowRight, Check, Download, RefreshCw,
+  BookOpen, User, Lock, LogOut, Database, Cpu, TrendingUp,
   PieChart, HelpCircle, X, Upload, FileText, Image as ImageIcon,
-  FileSpreadsheet, Activity
+  FileSpreadsheet, Activity, Leaf, Wind, Droplets, Thermometer,
+  FlaskConical, CloudRain, ChevronDown, Star, Zap, BarChart3,
+  Menu, Home, Settings, History
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { translations, Language } from './translations';
 
 export default function App() {
-  // Navigation & Language
   const [page, setPage] = useState<'landing' | 'admin' | 'history'>('landing');
   const [lang, setLang] = useState<Language>('en');
   const t = translations[lang];
 
-  // Chatbox NLP State
   const [inputText, setInputText] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Analysis Loader State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(1);
   const [nlpError, setNlpError] = useState<string | null>(null);
 
-  // Prediction Result State
   const [result, setResult] = useState<any>(null);
   const [lastInputs, setLastInputs] = useState<any>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Admin Auth State
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminUser, setAdminUser] = useState<any>(JSON.parse(localStorage.getItem('admin_user') || 'null'));
 
-  // Admin Dashboard State
   const [analytics, setAnalytics] = useState<any>(null);
   const [adminPredictions, setAdminPredictions] = useState<any[]>([]);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [isTraining, setIsTraining] = useState(false);
   const [trainingStatusMsg, setTrainingStatusMsg] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
-  // Load analytics if admin logged in
   useEffect(() => {
     if (authToken && page === 'admin') {
       fetchAnalytics();
@@ -55,7 +52,6 @@ export default function App() {
     }
   }, [authToken, page]);
 
-  // Loading Steps Auto-Progression
   useEffect(() => {
     let timer: any;
     if (isAnalyzing) {
@@ -70,44 +66,20 @@ export default function App() {
     return () => clearInterval(timer);
   }, [isAnalyzing]);
 
-  // API Call Helpers
   const fetchAnalytics = async () => {
     try {
-      const res = await fetch('/api/analytics', {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          setAnalytics(data);
-        } catch (jsonErr) {
-          console.error("Analytics response is not valid JSON", jsonErr);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch analytics:", err);
-    }
+      const res = await fetch('/api/analytics', { headers: { 'Authorization': `Bearer ${authToken}` } });
+      if (res.ok) { const data = JSON.parse(await res.text()); setAnalytics(data); }
+    } catch (err) { console.error(err); }
   };
 
   const fetchHistory = async () => {
     try {
       const res = await fetch('/api/prediction-history');
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          setAdminPredictions(data);
-        } catch (jsonErr) {
-          console.error("History response is not valid JSON", jsonErr);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch prediction history:", err);
-    }
+      if (res.ok) { const data = JSON.parse(await res.text()); setAdminPredictions(data); }
+    } catch (err) { console.error(err); }
   };
 
-  // Auth Functions
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdminError(null);
@@ -115,1257 +87,871 @@ export default function App() {
       const formData = new URLSearchParams();
       formData.append('username', adminEmail);
       formData.append('password', adminPassword);
-
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData,
-      });
-
+      const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData });
       if (!res.ok) {
-        let errMsg = "Authentication failed";
-        try {
-          const text = await res.text();
-          const errData = JSON.parse(text);
-          errMsg = errData.detail || errMsg;
-        } catch {
-          errMsg = `Login failed (Status ${res.status}): The backend server is offline or returned an invalid response.`;
-        }
-        throw new Error(errMsg);
-      }
-
-      let data;
-      try {
         const text = await res.text();
-        data = JSON.parse(text);
-      } catch {
-        throw new Error("Invalid response format received from login server.");
+        try { throw new Error(JSON.parse(text).detail || 'Authentication failed'); }
+        catch { throw new Error(`Login failed (Status ${res.status})`); }
       }
+      const data = JSON.parse(await res.text());
       setAuthToken(data.access_token);
       setAdminUser(data.user);
       localStorage.setItem('admin_token', data.access_token);
       localStorage.setItem('admin_user', JSON.stringify(data.user));
-      setAdminEmail('');
-      setAdminPassword('');
-    } catch (err: any) {
-      setAdminError(err.message || "Invalid credentials");
-    }
+      setAdminEmail(''); setAdminPassword('');
+    } catch (err: any) { setAdminError(err.message || 'Invalid credentials'); }
   };
 
   const handleAdminLogout = () => {
-    setAuthToken(null);
-    setAdminUser(null);
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_user');
+    setAuthToken(null); setAdminUser(null);
+    localStorage.removeItem('admin_token'); localStorage.removeItem('admin_user');
   };
 
-  // Prediction Actions
   const runPrediction = async () => {
-    setNlpError(null);
-    setFileError(null);
-    setIsAnalyzing(true);
-    setAnalysisStep(1);
-    setResult(null);
-
+    setNlpError(null); setFileError(null);
+    setIsAnalyzing(true); setAnalysisStep(1); setResult(null);
     try {
       let endpoint = '/api/predict/nlp';
-      let body: any = null;
-      let method = 'POST';
+      let body: any;
       let headers: any = { 'Content-Type': 'application/json' };
-
       if (selectedFile) {
         endpoint = '/api/predict/file';
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        body = formData;
-        headers = {}; // Let browser set boundary
+        const fd = new FormData(); fd.append('file', selectedFile);
+        body = fd; headers = {};
       } else {
-        if (!inputText.trim()) {
-          throw new Error("Please enter your soil/weather parameters or drag a file");
-        }
+        if (!inputText.trim()) throw new Error('Please enter your soil/weather parameters');
         body = JSON.stringify({ text: inputText });
       }
-
-      // Allow admin token to log username
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-
-      const res = await fetch(endpoint, {
-        method,
-        headers,
-        body
-      });
-
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+      const res = await fetch(endpoint, { method: 'POST', headers, body });
       if (!res.ok) {
-        let errMsg = "Failed to process farm request";
-        try {
-          const text = await res.text();
-          const err = JSON.parse(text);
-          errMsg = err.detail || errMsg;
-        } catch {
-          errMsg = `Connection failed (Status ${res.status}): The backend API is offline or returned an invalid response. If you are running locally, please ensure the backend server is running on port 8000.`;
-        }
-        throw new Error(errMsg);
-      }
-
-      let data;
-      try {
         const text = await res.text();
-        data = JSON.parse(text);
-      } catch {
-        throw new Error(`Invalid response format from server (Status ${res.status}). Expected JSON but received HTML/Text.`);
+        try { throw new Error(JSON.parse(text).detail || 'Failed'); }
+        catch { throw new Error(`Connection failed (Status ${res.status}): Backend API offline.`); }
       }
-      
-      // Wait for loader simulation
+      const data = JSON.parse(await res.text());
       setTimeout(() => {
-        if (data.success === false) {
-          setNlpError(data.error);
-          setIsAnalyzing(false);
-        } else {
-          setIsAnalyzing(false);
-          if (selectedFile) {
-            setResult(data.prediction);
-            setLastInputs(data.extracted);
-          } else {
-            setResult(data.prediction);
-            setLastInputs(data.extracted);
-          }
-        }
+        if (data.success === false) { setNlpError(data.error); setIsAnalyzing(false); }
+        else { setIsAnalyzing(false); setResult(data.prediction); setLastInputs(data.extracted); }
       }, 6200);
-
-    } catch (err: any) {
-      setIsAnalyzing(false);
-      setNlpError(err.message || "Something went wrong during prediction");
-    }
+    } catch (err: any) { setIsAnalyzing(false); setNlpError(err.message || 'Something went wrong'); }
   };
 
-  const handleExampleClick = (val: string) => {
-    setInputText(val);
-    setSelectedFile(null);
-  };
+  const handleExampleClick = (val: string) => { setInputText(val); setSelectedFile(null); };
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer.files?.[0]) {
       const file = e.dataTransfer.files[0];
       const ext = file.name.split('.').pop()?.toLowerCase();
-      if (['pdf', 'csv', 'txt', 'jpg', 'jpeg', 'png'].includes(ext || '')) {
-        setSelectedFile(file);
-        setFileError(null);
-      } else {
-        setFileError("Unsupported format. Please upload PDF, CSV, TXT, or Image.");
-      }
+      if (['pdf', 'csv', 'txt', 'jpg', 'jpeg', 'png'].includes(ext || '')) { setSelectedFile(file); setFileError(null); }
+      else setFileError('Unsupported format. Please upload PDF, CSV, TXT, or Image.');
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setFileError(null);
-    }
+    if (e.target.files?.[0]) { setSelectedFile(e.target.files[0]); setFileError(null); }
   };
 
   const handleSavePrediction = () => {
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    }, 1000);
+    setTimeout(() => { setIsSaving(false); setSaveSuccess(true); setTimeout(() => setSaveSuccess(false), 3000); }, 1000);
   };
 
-  // PDF Generation Script
   const generatePDFReport = () => {
     if (!result || !lastInputs) return;
-
     const doc = new jsPDF();
-    const primaryGreen = "#16A34A";
-    const darkSlate = "#0F172A";
-
-    // Border Frame
-    doc.setDrawColor(220, 225, 230);
-    doc.rect(5, 5, 200, 287);
-
-    // Header
-    doc.setFillColor(primaryGreen);
-    doc.rect(5, 5, 200, 35, "F");
-    
-    doc.setTextColor("#FFFFFF");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("SmartCrop AI Report", 15, 20);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text("Intelligent Agriculture Recommendation Platform • 2026", 15, 30);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 155, 25);
-
-    // Results Header
-    doc.setTextColor(darkSlate);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("RECOMMENDED CROP", 15, 55);
-
-    doc.setFontSize(36);
-    doc.setTextColor(primaryGreen);
-    doc.text(result.crop.toUpperCase(), 15, 70);
-
-    doc.setFontSize(12);
-    doc.setTextColor(darkSlate);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Suitability Score: ${result.suitability_score}/100`, 15, 82);
-    doc.text(`Recommendation Confidence: ${result.confidence}%`, 15, 88);
-
-    // Draw divider line
-    doc.setDrawColor(200, 200, 200);
-    doc.line(15, 95, 195, 95);
-
-    // Inputs Table
-    doc.setFont("helvetica", "bold");
-    doc.text("SOIL & ENVIRONMENTAL PARAMETERS USED:", 15, 105);
-
-    // Create table grid manually
-    const tableY = 112;
-    doc.setFontSize(10);
-    
-    // Table Header
-    doc.setFillColor(245, 247, 250);
-    doc.rect(15, tableY, 180, 8, "F");
-    doc.setFont("helvetica", "bold");
-    doc.text("Parameter", 20, tableY + 5);
-    doc.text("Value Analyzed", 90, tableY + 5);
-    doc.text("Status", 150, tableY + 5);
-
-    const paramsList = [
-      { name: "Nitrogen (N)", val: `${lastInputs.n} mg/kg`, match: result.suitability.n },
-      { name: "Phosphorus (P)", val: `${lastInputs.p} mg/kg`, match: result.suitability.p },
-      { name: "Potassium (K)", val: `${lastInputs.k} mg/kg`, match: result.suitability.k },
-      { name: "Temperature", val: `${lastInputs.temperature}°C`, match: result.suitability.temperature },
-      { name: "Relative Humidity", val: `${lastInputs.humidity}%`, match: result.suitability.humidity },
-      { name: "Soil pH Level", val: `${lastInputs.ph}`, match: result.suitability.ph },
-      { name: "Rainfall Index", val: `${lastInputs.rainfall} mm`, match: result.suitability.rainfall }
+    doc.setFillColor('#16A34A'); doc.rect(0, 0, 210, 40, 'F');
+    doc.setTextColor('#FFFFFF'); doc.setFont('helvetica', 'bold'); doc.setFontSize(22);
+    doc.text('SmartCrop AI Report', 15, 22);
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 150, 22);
+    doc.setTextColor('#0F172A'); doc.setFontSize(28); doc.setFont('helvetica', 'bold');
+    doc.text(result.crop.toUpperCase(), 15, 60);
+    doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+    doc.text(`Suitability: ${result.suitability_score}/100  |  Confidence: ${result.confidence}%`, 15, 70);
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('PARAMETERS ANALYZED:', 15, 85);
+    const params = [
+      ['Nitrogen (N)', `${lastInputs?.n} mg/kg`, result.suitability?.n],
+      ['Phosphorus (P)', `${lastInputs?.p} mg/kg`, result.suitability?.p],
+      ['Potassium (K)', `${lastInputs?.k} mg/kg`, result.suitability?.k],
+      ['Temperature', `${lastInputs?.temperature}°C`, result.suitability?.temperature],
+      ['Humidity', `${lastInputs?.humidity}%`, result.suitability?.humidity],
+      ['Soil pH', `${lastInputs?.ph}`, result.suitability?.ph],
+      ['Rainfall', `${lastInputs?.rainfall} mm`, result.suitability?.rainfall],
     ];
-
-    doc.setFont("helvetica", "normal");
-    paramsList.forEach((p, idx) => {
-      const rowY = tableY + 8 + (idx * 8);
-      if (idx % 2 === 1) {
-        doc.setFillColor(250, 252, 255);
-        doc.rect(15, rowY, 180, 8, "F");
-      }
-      doc.text(p.name, 20, rowY + 5);
-      doc.text(p.val, 90, rowY + 5);
-      doc.setTextColor(p.match ? primaryGreen : "#EF4444");
-      doc.text(p.match ? "Optimal Range" : "Outside Range", 150, rowY + 5);
-      doc.setTextColor(darkSlate);
+    params.forEach(([name, val, ok], i) => {
+      const y = 95 + i * 9;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor('#374151');
+      doc.text(name, 20, y); doc.text(String(val), 90, y);
+      doc.setTextColor(ok ? '#16A34A' : '#EF4444');
+      doc.text(ok ? '✓ Optimal' : '✗ Outside Range', 150, y);
     });
-
-    // Agronomy Advisory Section
-    const advY = tableY + 70;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("AGRONOMIST GROWING ADVISORY", 15, advY);
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("Growing Tips:", 15, advY + 8);
-    doc.setFont("helvetica", "normal");
-    const tipsSplit = doc.splitTextToSize(result.meta.tips, 175);
-    doc.text(tipsSplit, 15, advY + 13);
-
-    const tipsHeight = tipsSplit.length * 5 + 13;
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Expected Yield Per Hectare:", 15, advY + tipsHeight + 5);
-    doc.setFont("helvetica", "normal");
-    doc.text(result.meta.yield, 15, advY + tipsHeight + 10);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Farming Advice:", 15, advY + tipsHeight + 20);
-    doc.setFont("helvetica", "normal");
-    const adviceSplit = doc.splitTextToSize(result.meta.advice, 175);
-    doc.text(adviceSplit, 15, advY + tipsHeight + 25);
-
-    // PDF Footer
-    const footerY = 280;
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text("SmartCrop AI uses custom trained machine learning models. Validate with your local agricultural officer for regional variations.", 15, footerY);
-
-    doc.save(`SmartCrop_Report_${result.crop.toLowerCase()}.pdf`);
+    doc.setTextColor('#0F172A'); doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text('GROWING TIPS:', 15, 165);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.text(doc.splitTextToSize(result.meta.tips, 175), 15, 174);
+    doc.text('YIELD: ' + result.meta.yield, 15, 210);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor('#9CA3AF');
+    doc.text('SmartCrop AI — Validate with local agricultural officer for regional variations.', 15, 282);
+    doc.save(`SmartCrop_${result.crop}.pdf`);
   };
 
-  // Admin Actions
   const handleDatasetUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadFile) return;
-    setUploadStatus("Uploading...");
-
+    setUploadStatus('Uploading...');
     try {
-      const formData = new FormData();
-      formData.append('file', uploadFile);
-
-      const res = await fetch('/api/upload-dataset', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${authToken}` },
-        body: formData
-      });
-
-      if (!res.ok) {
-        let errMsg = "Failed to upload dataset";
-        try {
-          const text = await res.text();
-          const err = JSON.parse(text);
-          errMsg = err.detail || errMsg;
-        } catch {
-          errMsg = `Upload failed (Status ${res.status}): Server offline or invalid response.`;
-        }
-        throw new Error(errMsg);
-      }
-
-      let data;
-      try {
-        const text = await res.text();
-        data = JSON.parse(text);
-      } catch {
-        throw new Error("Invalid response format received from upload server.");
-      }
-      setUploadStatus(`Success! Uploaded ${data.record_count} dataset records.`);
-      setUploadFile(null);
-      fetchAnalytics();
-    } catch (err: any) {
-      setUploadStatus(`Error: ${err.message}`);
-    }
+      const fd = new FormData(); fd.append('file', uploadFile);
+      const res = await fetch('/api/upload-dataset', { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      const data = JSON.parse(await res.text());
+      setUploadStatus(`✓ Uploaded ${data.record_count} records.`);
+      setUploadFile(null); fetchAnalytics();
+    } catch (err: any) { setUploadStatus(`Error: ${err.message}`); }
   };
 
   const handleRetrainModel = async () => {
-    setIsTraining(true);
-    setTrainingStatusMsg(t.modelRunning);
+    setIsTraining(true); setTrainingStatusMsg(t.modelRunning);
     try {
-      const res = await fetch('/api/train-model', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
-
-      if (!res.ok) {
-        let errMsg = "Training failed";
-        try {
-          const text = await res.text();
-          const err = JSON.parse(text);
-          errMsg = err.detail || errMsg;
-        } catch {
-          errMsg = `Training failed (Status ${res.status}): Server offline or invalid response.`;
-        }
-        throw new Error(errMsg);
-      }
-
-      let data;
-      try {
-        const text = await res.text();
-        data = JSON.parse(text);
-      } catch {
-        throw new Error("Invalid response format received from training server.");
-      }
-      setTrainingStatusMsg(`Training Success! Accuracy: ${data.accuracy}%. Model Version: ${data.model_version}`);
+      const res = await fetch('/api/train-model', { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` } });
+      if (!res.ok) throw new Error(`Training failed (${res.status})`);
+      const data = JSON.parse(await res.text());
+      setTrainingStatusMsg(`✓ Accuracy: ${data.accuracy}% — Model v${data.model_version}`);
       fetchAnalytics();
-    } catch (err: any) {
-      setTrainingStatusMsg(`Training Failed: ${err.message}`);
-    } finally {
-      setIsTraining(false);
-    }
+    } catch (err: any) { setTrainingStatusMsg(`✗ ${err.message}`); }
+    finally { setIsTraining(false); }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-text-primary flex flex-col font-sans">
-      
-      {/* 1. Header Navigation */}
-      <header className="glass-panel sticky top-0 z-40 border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => { setPage('landing'); setResult(null); }}>
-            <div className="bg-primary p-2 rounded-xl text-white shadow-md shadow-emerald-500/20">
-              <Sprout className="w-6 h-6" />
-            </div>
-            <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-              {t.title}
-            </span>
-          </div>
+  const cropIcons: Record<string, string> = {
+    rice: '🌾', maize: '🌽', banana: '🍌', mango: '🥭', apple: '🍎', orange: '🍊',
+    grapes: '🍇', watermelon: '🍉', coconut: '🥥', coffee: '☕', cotton: '🌿',
+    chickpea: '🫘', lentil: '🫘', jute: '🌿', papaya: '🍈', muskmelon: '🍈',
+    default: '🌱'
+  };
 
-          <div className="flex items-center space-x-4">
-            {/* Lang Dropdown */}
-            <div className="relative flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
-              <Globe className="w-4 h-4 text-text-secondary mx-1" />
-              <select 
-                value={lang} 
+  const paramIcons = [
+    { icon: Leaf, key: 'n', label: 'Nitrogen', unit: 'mg/kg', color: 'text-green-600 bg-green-50' },
+    { icon: FlaskConical, key: 'p', label: 'Phosphorus', unit: 'mg/kg', color: 'text-blue-600 bg-blue-50' },
+    { icon: Zap, key: 'k', label: 'Potassium', unit: 'mg/kg', color: 'text-purple-600 bg-purple-50' },
+    { icon: Thermometer, key: 'temperature', label: 'Temperature', unit: '°C', color: 'text-orange-600 bg-orange-50' },
+    { icon: Droplets, key: 'humidity', label: 'Humidity', unit: '%', color: 'text-cyan-600 bg-cyan-50' },
+    { icon: Wind, key: 'ph', label: 'Soil pH', unit: '', color: 'text-amber-600 bg-amber-50' },
+    { icon: CloudRain, key: 'rainfall', label: 'Rainfall', unit: 'mm', color: 'text-indigo-600 bg-indigo-50' },
+  ];
+
+  // ======================== RENDER ========================
+  return (
+    <div className="min-h-screen" style={{ background: '#f8faf8', fontFamily: 'Inter, sans-serif' }}>
+
+      {/* ===== HEADER ===== */}
+      <header className="glass sticky top-0 z-40 border-b border-white/60" style={{ boxShadow: '0 1px 16px rgba(0,0,0,0.06)' }}>
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+
+          {/* Logo */}
+          <button
+            onClick={() => { setPage('landing'); setResult(null); }}
+            className="flex items-center gap-2.5 group"
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
+              <Sprout className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-lg font-bold tracking-tight" style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              SmartCrop AI
+            </span>
+          </button>
+
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center gap-3">
+            <div className="flex items-center gap-1.5 bg-gray-100 rounded-xl px-3 py-1.5">
+              <Globe className="w-4 h-4 text-gray-500" />
+              <select
+                value={lang}
                 onChange={(e) => setLang(e.target.value as Language)}
-                className="bg-transparent text-sm text-text-secondary font-medium focus:outline-none pr-2 cursor-pointer"
+                className="bg-transparent text-sm font-medium text-gray-600 outline-none cursor-pointer pr-1"
               >
                 <option value="en">English</option>
-                <option value="ta">தமிழ் (Tamil)</option>
-                <option value="hi">हिंदी (Hindi)</option>
+                <option value="ta">தமிழ்</option>
+                <option value="hi">हिंदी</option>
               </select>
             </div>
 
-            {/* Admin navigation */}
             {authToken ? (
-              <button 
-                onClick={() => setPage(page === 'admin' ? 'landing' : 'admin')}
-                className="px-4 py-1.5 rounded-lg border border-emerald-600 text-emerald-600 text-sm font-semibold hover:bg-emerald-50 transition"
-              >
-                {page === 'admin' ? t.home : t.admin}
+              <button onClick={() => setPage(page === 'admin' ? 'landing' : 'admin')}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all"
+                style={{ background: page === 'admin' ? '#f0fdf4' : 'white', border: '1.5px solid #22c55e', color: '#16a34a' }}>
+                <Settings className="w-4 h-4" />
+                {page === 'admin' ? 'Home' : 'Dashboard'}
               </button>
             ) : (
-              <button 
-                onClick={() => setPage('admin')}
-                className="px-4 py-1.5 rounded-lg border border-slate-300 text-text-secondary text-sm font-medium hover:bg-slate-100 transition"
-              >
-                {t.admin}
+              <button onClick={() => setPage('admin')}
+                className="px-4 py-2 rounded-xl font-semibold text-sm text-gray-600 bg-white border border-gray-200 hover:border-green-400 hover:text-green-700 transition-all">
+                Admin Dashboard
               </button>
             )}
           </div>
+
+          {/* Mobile menu */}
+          <button className="md:hidden p-2 rounded-xl border border-gray-200" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <Menu className="w-5 h-5 text-gray-600" />
+          </button>
         </div>
+
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-gray-100 p-4 space-y-3 bg-white animate-slide-up">
+            <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2.5 w-full">
+              <Globe className="w-4 h-4 text-gray-500" />
+              <select value={lang} onChange={(e) => { setLang(e.target.value as Language); setMobileMenuOpen(false); }}
+                className="flex-1 bg-transparent text-sm font-medium text-gray-600 outline-none">
+                <option value="en">English</option>
+                <option value="ta">தமிழ்</option>
+                <option value="hi">हिंदी</option>
+              </select>
+            </div>
+            <button onClick={() => { setPage(authToken ? (page === 'admin' ? 'landing' : 'admin') : 'admin'); setMobileMenuOpen(false); }}
+              className="w-full flex items-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm text-green-700 bg-green-50 border border-green-200">
+              <Settings className="w-4 h-4" /> Admin Dashboard
+            </button>
+          </div>
+        )}
       </header>
 
-      {/* 2. Main App Area */}
-      <main className="flex-grow">
-        {isAnalyzing ? (
-          /* Analysis Experience / Loader Overlay */
-          <div className="max-w-md mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
-            <div className="relative mb-8">
-              {/* Outer Pulsing Glow */}
-              <div className="absolute -inset-1 rounded-full bg-primary/20 blur-xl animate-pulse-slow"></div>
-              {/* Inner Spinning Ring */}
-              <div className="w-20 h-20 rounded-full border-4 border-slate-200 border-t-primary animate-spin"></div>
-            </div>
-            
-            <h2 className="text-2xl font-bold text-text-primary mb-6 animate-pulse">
-              {t.loadingTitle}
-            </h2>
+      {/* ===== MAIN ===== */}
+      <main className="pb-24 md:pb-8">
 
-            {/* Steps Timeline */}
-            <div className="w-full bg-white rounded-2xl shadow-xl shadow-slate-100 border border-slate-100 p-6 space-y-4 text-left">
-              {[
-                { step: 1, label: t.loadingStep1 },
-                { step: 2, label: t.loadingStep2 },
-                { step: 3, label: t.loadingStep3 },
-                { step: 4, label: t.loadingStep4 }
-              ].map((s) => (
-                <div key={s.step} className="flex items-center space-x-3 transition duration-300">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center border text-xs font-semibold ${
-                    analysisStep > s.step 
-                      ? "bg-primary border-primary text-white" 
-                      : analysisStep === s.step 
-                        ? "border-primary text-primary animate-pulse" 
-                        : "border-slate-200 text-slate-400"
-                  }`}>
-                    {analysisStep > s.step ? <Check className="w-3.5 h-3.5" /> : s.step}
-                  </div>
-                  <span className={`text-sm ${
-                    analysisStep === s.step 
-                      ? "text-text-primary font-semibold" 
-                      : analysisStep > s.step 
-                        ? "text-text-secondary line-through opacity-60" 
-                        : "text-text-light"
-                  }`}>
-                    {s.label}
-                  </span>
+        {/* ========== ANALYZING LOADER ========== */}
+        {isAnalyzing ? (
+          <div className="min-h-[85vh] flex items-center justify-center px-4">
+            <div className="w-full max-w-sm animate-scale-in">
+              {/* Animated rings */}
+              <div className="relative w-32 h-32 mx-auto mb-8">
+                <div className="absolute inset-0 rounded-full border-4 border-green-100 animate-spin-slow" style={{ borderTopColor: '#22c55e' }} />
+                <div className="absolute inset-3 rounded-full border-4 border-green-50 animate-spin-reverse" style={{ borderBottomColor: '#16a34a' }} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-4xl animate-float">🌱</span>
                 </div>
-              ))}
+              </div>
+
+              <h2 className="text-2xl font-bold text-center text-gray-900 mb-1">{t.loadingTitle}</h2>
+              <p className="text-gray-500 text-center text-sm mb-8">Please wait while AI analyzes your farm data...</p>
+
+              <div className="card p-6 space-y-4">
+                {[
+                  { step: 1, label: t.loadingStep1, icon: '🧪' },
+                  { step: 2, label: t.loadingStep2, icon: '🌡️' },
+                  { step: 3, label: t.loadingStep3, icon: '🤖' },
+                  { step: 4, label: t.loadingStep4, icon: '📊' },
+                ].map((s) => (
+                  <div key={s.step} className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 transition-all duration-500 ${
+                      analysisStep > s.step ? 'bg-green-500' : analysisStep === s.step ? 'bg-green-100 animate-glow' : 'bg-gray-100'
+                    }`}>
+                      {analysisStep > s.step ? <Check className="w-4 h-4 text-white" /> : <span>{s.icon}</span>}
+                    </div>
+                    <span className={`text-sm font-medium transition-all ${
+                      analysisStep === s.step ? 'text-gray-900 font-semibold' :
+                      analysisStep > s.step ? 'text-gray-400 line-through' : 'text-gray-400'
+                    }`}>{s.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
         ) : result ? (
-          /* Prediction Results View */
-          <div className="max-w-2xl mx-auto px-4 py-8">
-            <div className="bg-white rounded-3xl shadow-xl shadow-slate-100 border border-slate-200 overflow-hidden">
-              
-              {/* Crop Banner Image */}
-              <div className="relative h-56 bg-slate-900">
-                <img 
-                  src={result.meta.image} 
-                  alt={result.crop} 
-                  className="w-full h-full object-cover opacity-80"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent"></div>
-                <div className="absolute bottom-6 left-6">
-                  <span className="bg-emerald-500 text-white text-xs font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full mb-2 inline-block">
-                    Recommended Crop
-                  </span>
-                  <h1 className="text-4xl font-extrabold text-white">
-                    {result.crop}
-                  </h1>
-                </div>
-              </div>
-
-              {/* Suitability Score Dial */}
-              <div className="p-6 border-b border-slate-100 bg-slate-50/50 grid grid-cols-2 gap-4 text-center">
-                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-                  <span className="text-xs text-text-secondary uppercase tracking-wider font-semibold block mb-1">
-                    {t.suitabilityScore}
-                  </span>
-                  <span className="text-3xl font-extrabold text-primary">
-                    {result.suitability_score}%
-                  </span>
-                </div>
-                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-                  <span className="text-xs text-text-secondary uppercase tracking-wider font-semibold block mb-1">
-                    {t.confidence}
-                  </span>
-                  <span className="text-3xl font-extrabold text-text-primary">
-                    {result.confidence}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Suitability Reasoning Checks */}
-              <div className="p-6 border-b border-slate-100">
-                <h3 className="font-bold text-text-primary mb-4 flex items-center space-x-2">
-                  <Check className="w-5 h-5 text-primary" />
-                  <span>{t.suitabilityReasoning}</span>
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${result.suitability.n ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
-                      {result.suitability.n ? "✓" : "✗"}
-                    </div>
-                    <span className={result.suitability.n ? "text-text-primary font-medium" : "text-red-500"}>
-                      {t.nitrogenMatch}
+          /* ========== RESULT VIEW ========== */
+          <div className="max-w-2xl mx-auto px-4 py-6 animate-slide-up">
+            {/* Crop Hero Banner */}
+            <div className="relative rounded-3xl overflow-hidden mb-4 shadow-xl" style={{ height: 220 }}>
+              <img src={result.meta.image} alt={result.crop} className="w-full h-full object-cover" />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.1) 100%)' }} />
+              <div className="absolute bottom-5 left-5 right-5">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <span className="chip bg-green-500 text-white mb-2">
+                      <Check className="w-3 h-3" /> Recommended Crop
                     </span>
+                    <h1 className="text-4xl font-black text-white leading-none">
+                      {cropIcons[result.crop.toLowerCase()] || '🌱'} {result.crop}
+                    </h1>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${result.suitability.temperature ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
-                      {result.suitability.temperature ? "✓" : "✗"}
-                    </div>
-                    <span className={result.suitability.temperature ? "text-text-primary font-medium" : "text-red-500"}>
-                      {t.tempMatch}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${result.suitability.rainfall ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
-                      {result.suitability.rainfall ? "✓" : "✗"}
-                    </div>
-                    <span className={result.suitability.rainfall ? "text-text-primary font-medium" : "text-red-500"}>
-                      {t.rainMatch}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${result.suitability.ph ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
-                      {result.suitability.ph ? "✓" : "✗"}
-                    </div>
-                    <span className={result.suitability.ph ? "text-text-primary font-medium" : "text-red-500"}>
-                      {t.soilMatch}
-                    </span>
+                  <div className="text-right">
+                    <div className="text-3xl font-black text-green-400">{result.suitability_score}%</div>
+                    <div className="text-xs text-white/70 font-medium">Suitability</div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Detailed Recommendation Tabs */}
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  {/* Growing Tips */}
-                  <div className="bg-emerald-50/50 border border-emerald-100 p-5 rounded-2xl">
-                    <h4 className="font-bold text-emerald-800 mb-2 flex items-center space-x-1.5">
-                      <Sprout className="w-4 h-4" />
-                      <span>{t.growingTips}</span>
-                    </h4>
-                    <p className="text-sm text-emerald-950 leading-relaxed">
-                      {result.meta.tips}
-                    </p>
-                  </div>
-
-                  {/* Expected Yield */}
-                  <div className="bg-indigo-50/50 border border-indigo-100 p-5 rounded-2xl">
-                    <h4 className="font-bold text-indigo-800 mb-2 flex items-center space-x-1.5">
-                      <TrendingUp className="w-4 h-4" />
-                      <span>{t.expectedYield}</span>
-                    </h4>
-                    <p className="text-sm text-indigo-950 leading-relaxed font-semibold">
-                      {result.meta.yield}
-                    </p>
-                  </div>
-
-                  {/* Weather Compatibility */}
-                  <div className="bg-amber-50/50 border border-amber-100 p-5 rounded-2xl">
-                    <h4 className="font-bold text-amber-800 mb-2 flex items-center space-x-1.5">
-                      <Globe className="w-4 h-4" />
-                      <span>{t.weatherComp}</span>
-                    </h4>
-                    <p className="text-sm text-amber-950 leading-relaxed">
-                      {result.meta.weather}
-                    </p>
-                  </div>
-
-                  {/* Soil Compatibility */}
-                  <div className="bg-blue-50/50 border border-blue-100 p-5 rounded-2xl">
-                    <h4 className="font-bold text-blue-800 mb-2 flex items-center space-x-1.5">
-                      <Database className="w-4 h-4" />
-                      <span>{t.soilComp}</span>
-                    </h4>
-                    <p className="text-sm text-blue-950 leading-relaxed">
-                      {result.meta.soil}
-                    </p>
-                  </div>
+            {/* Score Cards */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="card p-4 text-center gradient-border">
+                <div className="text-3xl font-black" style={{ color: '#16a34a' }}>{result.confidence}%</div>
+                <div className="text-xs font-semibold text-gray-500 mt-1">AI Confidence</div>
+                <div className="score-bar mt-2">
+                  <div className="score-bar-fill" style={{ width: `${result.confidence}%` }} />
                 </div>
+              </div>
+              <div className="card p-4 text-center gradient-border">
+                <div className="text-3xl font-black text-gray-900">{result.suitability_score}</div>
+                <div className="text-xs font-semibold text-gray-500 mt-1">Suitability Score</div>
+                <div className="score-bar mt-2">
+                  <div className="score-bar-fill" style={{ width: `${result.suitability_score}%` }} />
+                </div>
+              </div>
+            </div>
 
-                {/* Farming Advice */}
-                <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
-                  <h4 className="font-bold text-text-primary mb-2 flex items-center space-x-1.5">
-                    <BookOpen className="w-4 h-4 text-primary" />
-                    <span>{t.farmingAdvice}</span>
+            {/* Parameter Suitability Grid */}
+            <div className="card p-5 mb-4">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-green-600" /> Parameter Analysis
+              </h3>
+              <div className="grid grid-cols-2 gap-2.5">
+                {paramIcons.map(({ icon: Icon, key, label, unit, color }) => {
+                  const ok = result.suitability?.[key];
+                  const val = lastInputs?.[key];
+                  return (
+                    <div key={key} className={`flex items-center gap-3 rounded-2xl p-3 ${ok ? 'bg-green-50/70' : 'bg-red-50/70'}`}>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-semibold text-gray-500 truncate">{label}</div>
+                        <div className="text-sm font-bold text-gray-900">{val}{unit}</div>
+                      </div>
+                      <div className={`ml-auto flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${ok ? 'bg-green-500 text-white' : 'bg-red-400 text-white'}`}>
+                        {ok ? '✓' : '✗'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Info Cards */}
+            <div className="grid grid-cols-1 gap-3 mb-4">
+              <div className="card p-5" style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)' }}>
+                <h4 className="font-bold text-green-800 mb-2 flex items-center gap-2">
+                  <Sprout className="w-4 h-4" /> Growing Tips
+                </h4>
+                <p className="text-sm text-green-900 leading-relaxed">{result.meta.tips}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="card p-4" style={{ background: 'linear-gradient(135deg, #eff6ff, #dbeafe)' }}>
+                  <h4 className="font-bold text-blue-800 mb-1 flex items-center gap-1.5 text-sm">
+                    <TrendingUp className="w-3.5 h-3.5" /> Yield
                   </h4>
-                  <p className="text-sm text-text-secondary leading-relaxed">
-                    {result.meta.advice}
-                  </p>
+                  <p className="text-sm font-bold text-blue-900">{result.meta.yield}</p>
+                </div>
+                <div className="card p-4" style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)' }}>
+                  <h4 className="font-bold text-amber-800 mb-1 flex items-center gap-1.5 text-sm">
+                    <CloudRain className="w-3.5 h-3.5" /> Weather
+                  </h4>
+                  <p className="text-xs text-amber-900 leading-relaxed line-clamp-3">{result.meta.weather}</p>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row gap-3">
-                <button 
-                  onClick={generatePDFReport}
-                  className="flex-1 bg-primary text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-primary-hover active:scale-[0.98] transition shadow-md shadow-emerald-500/15"
-                >
-                  <Download className="w-5 h-5" />
-                  <span>{t.btnDownloadPdf}</span>
-                </button>
-                
-                <button 
-                  onClick={handleSavePrediction}
-                  disabled={saveSuccess || isSaving}
-                  className={`flex-1 font-semibold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 border transition ${
-                    saveSuccess 
-                      ? "bg-slate-100 text-emerald-600 border-emerald-200" 
-                      : "bg-white text-text-primary border-slate-300 hover:bg-slate-50"
-                  }`}
-                >
-                  {isSaving ? (
-                    <RefreshCw className="w-5 h-5 animate-spin text-text-secondary" />
-                  ) : saveSuccess ? (
-                    <Check className="w-5 h-5" />
-                  ) : null}
-                  <span>
-                    {isSaving 
-                      ? t.savingPrediction 
-                      : saveSuccess 
-                        ? t.savedSuccess 
-                        : t.btnSavePrediction}
-                  </span>
-                </button>
+              <div className="card p-5">
+                <h4 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-green-600" /> Farming Advice
+                </h4>
+                <p className="text-sm text-gray-600 leading-relaxed">{result.meta.advice}</p>
+              </div>
+            </div>
 
-                <button 
-                  onClick={() => { setResult(null); setInputText(''); setSelectedFile(null); }}
-                  className="bg-white text-text-secondary font-medium py-3 px-6 rounded-xl border border-slate-300 hover:bg-slate-50 transition"
-                >
-                  {t.btnPredictAgain}
+            {/* Action Buttons */}
+            <div className="grid grid-cols-1 gap-3">
+              <button onClick={generatePDFReport} className="btn-primary w-full justify-center py-4 text-base rounded-2xl">
+                <Download className="w-5 h-5" /> Download PDF Report
+              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={handleSavePrediction} disabled={saveSuccess || isSaving}
+                  className="btn-secondary justify-center py-3.5 rounded-2xl text-sm flex-1">
+                  {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : saveSuccess ? <Check className="w-4 h-4 text-green-600" /> : null}
+                  {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : t.btnSavePrediction}
+                </button>
+                <button onClick={() => { setResult(null); setInputText(''); setSelectedFile(null); }}
+                  className="btn-secondary justify-center py-3.5 rounded-2xl text-sm flex-1">
+                  <RefreshCw className="w-4 h-4" /> Try Again
                 </button>
               </div>
-
             </div>
           </div>
 
         ) : page === 'admin' ? (
-          /* Admin Login / Dashboard Portal */
+          /* ========== ADMIN PAGE ========== */
           !authToken ? (
-            <div className="max-w-md mx-auto px-4 py-20">
-              <div className="bg-white rounded-3xl shadow-xl shadow-slate-100 border border-slate-200 p-8">
-                
-                <div className="text-center mb-8">
-                  <div className="bg-emerald-100 p-3 rounded-2xl inline-block text-emerald-600 mb-3">
-                    <User className="w-8 h-8" />
+            <div className="min-h-[85vh] flex items-center justify-center px-4 py-10">
+              <div className="w-full max-w-sm animate-scale-in">
+                <div className="card p-8">
+                  <div className="text-center mb-8">
+                    <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
+                      <User className="w-8 h-8 text-white" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900">{t.adminLoginTitle}</h2>
+                    <p className="text-sm text-gray-500 mt-1">Secure Admin Access</p>
                   </div>
-                  <h2 className="text-2xl font-extrabold text-text-primary">
-                    {t.adminLoginTitle}
-                  </h2>
+
+                  <form onSubmit={handleAdminLogin} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{t.adminEmail}</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">@</span>
+                        <input type="email" required placeholder="admin@smartcrop.ai"
+                          value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)}
+                          className="input-field pl-9" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{t.adminPassword}</label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                        <input type="password" required placeholder="••••••••"
+                          value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)}
+                          className="input-field pl-10" />
+                      </div>
+                    </div>
+
+                    {adminError && (
+                      <div className="text-red-600 text-sm font-medium bg-red-50 rounded-xl p-3 border border-red-100">
+                        {adminError}
+                      </div>
+                    )}
+
+                    <button type="submit" className="btn-primary w-full justify-center py-3.5 rounded-xl text-base">
+                      {t.adminLoginBtn} <ArrowRight className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => setPage('landing')}
+                      className="w-full text-center text-sm font-semibold text-gray-500 hover:text-gray-900 py-2 transition-colors">
+                      ← {t.adminBackBtn}
+                    </button>
+                  </form>
                 </div>
-
-                <form onSubmit={handleAdminLogin} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
-                      {t.adminEmail}
-                    </label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-text-light">@</span>
-                      <input 
-                        type="email" 
-                        required
-                        placeholder="admin@smartcrop.ai"
-                        value={adminEmail}
-                        onChange={(e) => setAdminEmail(e.target.value)}
-                        className="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
-                      {t.adminPassword}
-                    </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-text-light absolute left-3 top-3.5" />
-                      <input 
-                        type="password" 
-                        required
-                        placeholder="••••••••"
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                        className="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  {adminError && (
-                    <div className="text-red-500 text-xs font-semibold bg-red-50 p-3 rounded-lg">
-                      {adminError}
-                    </div>
-                  )}
-
-                  <button 
-                    type="submit"
-                    className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center hover:bg-primary-hover active:scale-[0.98] transition shadow-md shadow-emerald-500/15"
-                  >
-                    <span>{t.adminLoginBtn}</span>
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={() => setPage('landing')}
-                    className="w-full bg-transparent text-text-secondary hover:text-text-primary text-sm font-semibold py-2 transition"
-                  >
-                    {t.adminBackBtn}
-                  </button>
-                </form>
-
               </div>
             </div>
           ) : (
-            /* Secure Dashboard View */
-            <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-              
-              {/* Dashboard Header Banner */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 text-white rounded-3xl p-6 shadow-lg shadow-slate-950/20">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-primary p-2.5 rounded-xl">
-                    <Cpu className="w-6 h-6 text-white" />
+            /* Admin Dashboard */
+            <div className="max-w-6xl mx-auto px-4 py-6 space-y-6 animate-slide-up">
+
+              {/* Dashboard Header */}
+              <div className="rounded-3xl p-6 text-white" style={{ background: 'linear-gradient(135deg, #0b1a0c 0%, #14532d 100%)' }}>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-green-500/20 flex items-center justify-center">
+                      <Cpu className="w-6 h-6 text-green-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold">{t.adminWelcome}</h2>
+                      <p className="text-green-400 text-xs font-medium">{adminUser?.email}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold">{t.adminWelcome}</h2>
-                    <p className="text-xs text-slate-400">System Admin: {adminUser?.email}</p>
-                  </div>
+                  <button onClick={handleAdminLogout}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm text-green-300 border border-green-800 hover:bg-green-900/50 transition-all">
+                    <LogOut className="w-4 h-4" /> Logout
+                  </button>
                 </div>
-                
-                <button 
-                  onClick={handleAdminLogout}
-                  className="self-start md:self-center bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 font-semibold px-4 py-2 rounded-xl flex items-center space-x-2 text-sm transition"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>{t.adminLogoutBtn}</span>
-                </button>
               </div>
 
-              {/* Statistics Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: t.metricPredictions, value: analytics?.metrics?.total_predictions ?? 0, icon: Sprout, color: "text-emerald-600 bg-emerald-100" },
-                  { label: t.metricUsers, value: analytics?.metrics?.total_users ?? 1, icon: User, color: "text-blue-600 bg-blue-100" },
-                  { label: t.metricRecords, value: analytics?.metrics?.dataset_records ?? 2200, icon: Database, color: "text-indigo-600 bg-indigo-100" },
-                  { label: t.metricAccuracy, value: `${analytics?.metrics?.model_accuracy ?? 99.09}%`, icon: Cpu, color: "text-amber-600 bg-amber-100" }
+                  { label: t.metricPredictions, value: analytics?.metrics?.total_predictions ?? 0, icon: Sprout, color: '#22c55e', bg: '#f0fdf4' },
+                  { label: t.metricUsers, value: analytics?.metrics?.total_users ?? 1, icon: User, color: '#3b82f6', bg: '#eff6ff' },
+                  { label: t.metricRecords, value: analytics?.metrics?.dataset_records ?? 2200, icon: Database, color: '#8b5cf6', bg: '#f5f3ff' },
+                  { label: t.metricAccuracy, value: `${analytics?.metrics?.model_accuracy ?? 99.09}%`, icon: Cpu, color: '#f59e0b', bg: '#fffbeb' },
                 ].map((stat, idx) => (
-                  <div key={idx} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                  <div key={idx} className="card p-5">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs text-text-secondary font-bold uppercase tracking-wider">{stat.label}</span>
-                      <div className={`p-2 rounded-lg ${stat.color}`}>
-                        <stat.icon className="w-4 h-4" />
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider leading-tight">{stat.label}</span>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: stat.bg }}>
+                        <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
                       </div>
                     </div>
-                    <span className="text-2xl font-extrabold text-text-primary">{stat.value}</span>
+                    <div className="text-2xl font-black text-gray-900">{stat.value}</div>
                   </div>
                 ))}
               </div>
 
-              {/* Analytics Graphs Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Crop Distribution Donuts (Custom SVG Chart) */}
-                <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-                  <h3 className="font-bold text-text-primary mb-4 flex items-center space-x-2">
-                    <PieChart className="w-5 h-5 text-primary" />
-                    <span>{t.cropDistribution}</span>
+              {/* Charts Row */}
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Crop Distribution */}
+                <div className="card p-6">
+                  <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <PieChart className="w-5 h-5 text-green-600" /> {t.cropDistribution}
                   </h3>
-                  
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                    {/* SVG Pie Chart */}
-                    <div className="relative w-36 h-36">
-                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 32 32">
-                        {/* Static slices representing crop recommendations */}
-                        <circle r="16" cx="16" cy="16" fill="transparent" stroke="#22C55E" stroke-width="4" stroke-dasharray="45 100" />
-                        <circle r="16" cx="16" cy="16" fill="transparent" stroke="#3B82F6" stroke-width="4" stroke-dasharray="25 100" stroke-dashoffset="-45" />
-                        <circle r="16" cx="16" cy="16" fill="transparent" stroke="#6366F1" stroke-width="4" stroke-dasharray="15 100" stroke-dashoffset="-70" />
-                        <circle r="16" cx="16" cy="16" fill="transparent" stroke="#F59E0B" stroke-width="4" stroke-dasharray="10 100" stroke-dashoffset="-85" />
-                        <circle r="16" cx="16" cy="16" fill="transparent" stroke="#CBD5E1" stroke-width="4" stroke-dasharray="5 100" stroke-dashoffset="-95" />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-xs font-bold text-text-secondary">Distribution</span>
-                      </div>
-                    </div>
-
-                    {/* Legend */}
-                    <div className="flex-grow space-y-2 text-xs">
-                      {analytics?.charts?.crop_distribution?.map((item: any, idx: number) => {
-                        const colors = ['bg-primary', 'bg-blue-500', 'bg-indigo-500', 'bg-amber-500', 'bg-slate-300'];
-                        return (
-                          <div key={idx} className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <span className={`w-3 h-3 rounded-full ${colors[idx % colors.length]}`}></span>
-                              <span className="font-medium text-text-primary">{item.crop}</span>
+                  <div className="space-y-3">
+                    {(analytics?.charts?.crop_distribution ?? [
+                      { crop: 'Rice', count: 24 }, { crop: 'Maize', count: 18 },
+                      { crop: 'Coffee', count: 14 }, { crop: 'Banana', count: 11 }, { crop: 'Grapes', count: 8 }
+                    ]).map((item: any, idx: number) => {
+                      const colors = ['#22c55e', '#3b82f6', '#8b5cf6', '#f59e0b', '#94a3b8'];
+                      const total = 75;
+                      const pct = Math.round((item.count / total) * 100);
+                      return (
+                        <div key={idx} className="flex items-center gap-3">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: colors[idx % colors.length] }} />
+                          <span className="text-sm font-medium text-gray-700 flex-1 truncate">{item.crop}</span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="w-20 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: colors[idx % colors.length] }} />
                             </div>
-                            <span className="text-text-secondary font-bold">{item.count} runs</span>
+                            <span className="text-xs font-bold text-gray-500 w-6">{item.count}</span>
                           </div>
-                        );
-                      }) ?? (
-                        <div className="text-text-light">Loading crop distribution data...</div>
-                      )}
-                    </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Prediction Trends (Custom SVG Line Graph) */}
-                <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-                  <h3 className="font-bold text-text-primary mb-4 flex items-center space-x-2">
-                    <Activity className="w-5 h-5 text-blue-600" />
-                    <span>{t.predictionTrends}</span>
+                {/* Trends */}
+                <div className="card p-6">
+                  <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-blue-600" /> {t.predictionTrends}
                   </h3>
-
-                  <div className="h-36 w-full">
-                    {/* SVG Line Graph */}
-                    <svg className="w-full h-full" viewBox="0 0 300 100" preserveAspectRatio="none">
-                      {/* Grid Lines */}
-                      <line x1="0" y1="20" x2="300" y2="20" stroke="#F1F5F9" stroke-width="1" />
-                      <line x1="0" y1="50" x2="300" y2="50" stroke="#F1F5F9" stroke-width="1" />
-                      <line x1="0" y1="80" x2="300" y2="80" stroke="#F1F5F9" stroke-width="1" />
-                      
-                      {/* Trend Line Path */}
-                      <path 
-                        d="M 10 70 Q 50 40 100 55 T 200 20 T 290 35" 
-                        fill="transparent" 
-                        stroke="#3B82F6" 
-                        stroke-width="3" 
-                        stroke-linecap="round"
-                      />
-                      {/* Accent gradient area */}
-                      <path 
-                        d="M 10 70 Q 50 40 100 55 T 200 20 T 290 35 L 290 100 L 10 100 Z" 
-                        fill="url(#trend-gradient)" 
-                        opacity="0.1"
-                      />
-                      <defs>
-                        <linearGradient id="trend-gradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stop-color="#3B82F6" />
-                          <stop offset="100%" stop-color="#3B82F6" stop-opacity="0" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-                  </div>
-                  
-                  {/* Labels row */}
-                  <div className="flex justify-between text-[10px] font-bold text-text-light mt-2 px-1">
-                    {analytics?.charts?.prediction_trends?.map((item: any, idx: number) => (
-                      <span key={idx}>{item.date}</span>
-                    )) ?? (
-                      <span>Loading trends dates...</span>
-                    )}
+                  <div className="h-36 flex items-end gap-1.5">
+                    {(analytics?.charts?.prediction_trends ?? [
+                      { date: 'M', count: 18 }, { date: 'T', count: 24 }, { date: 'W', count: 20 },
+                      { date: 'T', count: 32 }, { date: 'F', count: 28 }, { date: 'S', count: 15 }, { date: 'S', count: 22 }
+                    ]).map((item: any, idx: number) => {
+                      const maxCount = 40;
+                      const h = Math.max(8, (item.count / maxCount) * 100);
+                      return (
+                        <div key={idx} className="flex-1 flex flex-col items-center gap-1.5">
+                          <div className="w-full rounded-t-lg transition-all duration-700" style={{ height: `${h}%`, background: 'linear-gradient(to top, #16a34a, #4ade80)' }} />
+                          <span className="text-[10px] font-bold text-gray-400">{item.date}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-
               </div>
 
-              {/* Upload & Retrain Module */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Dataset Upload Card */}
-                <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <h3 className="font-bold text-text-primary mb-3 flex items-center space-x-2">
-                      <Database className="w-5 h-5 text-indigo-600" />
-                      <span>{t.uploadDatasetTitle}</span>
-                    </h3>
-                    <p className="text-xs text-text-secondary mb-6 leading-relaxed">
-                      Maintain models by uploading agricultural metrics. The CSV file must contain columns: `N`, `P`, `K`, `temperature`, `humidity`, `ph`, `rainfall`, and `label`.
-                    </p>
-                  </div>
-
-                  <form onSubmit={handleDatasetUpload} className="space-y-4">
-                    <div 
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={handleFileDrop}
-                      className="border-2 border-dashed border-slate-200 hover:border-primary rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center bg-slate-50"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <FileSpreadsheet className="w-8 h-8 text-indigo-400 mb-2" />
-                      <span className="text-sm font-semibold text-text-primary block">
-                        {uploadFile ? uploadFile.name : t.dragDropCsv}
-                      </span>
-                      <span className="text-xs text-text-light mt-1">Supports only .csv tables</span>
-                      <input 
-                        type="file" 
-                        ref={fileInputRef}
-                        onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                        accept=".csv"
-                        className="hidden"
-                      />
+              {/* Upload & Train */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="card p-6">
+                  <h3 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                    <Database className="w-5 h-5 text-indigo-600" /> {t.uploadDatasetTitle}
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+                    Upload CSV with columns: N, P, K, temperature, humidity, ph, rainfall, label
+                  </p>
+                  <form onSubmit={handleDatasetUpload} className="space-y-3">
+                    <div onDragOver={(e) => e.preventDefault()} onDrop={handleFileDrop}
+                      className="border-2 border-dashed border-gray-200 hover:border-green-400 rounded-2xl p-6 text-center cursor-pointer transition-all bg-gray-50 hover:bg-green-50/30"
+                      onClick={() => fileInputRef.current?.click()}>
+                      <FileSpreadsheet className="w-8 h-8 text-indigo-400 mx-auto mb-2" />
+                      <p className="text-sm font-semibold text-gray-700">{uploadFile ? uploadFile.name : t.dragDropCsv}</p>
+                      <p className="text-xs text-gray-400 mt-1">.csv files only</p>
+                      <input type="file" ref={fileInputRef} onChange={(e) => setUploadFile(e.target.files?.[0] || null)} accept=".csv" className="hidden" />
                     </div>
-
-                    {uploadStatus && (
-                      <div className="text-xs font-semibold text-text-secondary bg-slate-100 p-2.5 rounded-lg">
-                        {uploadStatus}
-                      </div>
-                    )}
-
-                    <button 
-                      type="submit" 
-                      disabled={!uploadFile}
-                      className="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-xl disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed hover:bg-indigo-700 transition"
-                    >
+                    {uploadStatus && <p className={`text-xs font-semibold p-3 rounded-xl ${uploadStatus.startsWith('✓') ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'}`}>{uploadStatus}</p>}
+                    <button type="submit" disabled={!uploadFile}
+                      className="w-full py-3 rounded-xl font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all text-white"
+                      style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
                       {t.btnUpload}
                     </button>
                   </form>
                 </div>
 
-                {/* Model Training Pipeline */}
-                <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <h3 className="font-bold text-text-primary mb-3 flex items-center space-x-2">
-                      <Cpu className="w-5 h-5 text-amber-600" />
-                      <span>{t.trainingTitle}</span>
-                    </h3>
-                    <p className="text-xs text-text-secondary mb-6 leading-relaxed">
-                      Re-calibrate the platform algorithm with the latest datasets. SmartCrop AI employs Scikit-Learn Random Forest optimization to fit soil thresholds.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-                      <div className="flex justify-between items-center text-sm font-semibold">
-                        <span className="text-text-secondary">{t.modelStatus}:</span>
-                        <span className={isTraining ? "text-amber-600" : "text-emerald-600"}>
-                          {isTraining ? t.modelRunning : t.modelIdle}
-                        </span>
-                      </div>
-                      
-                      {trainingStatusMsg && (
-                        <p className="text-xs text-text-secondary mt-2.5 pt-2.5 border-t border-slate-200 font-medium">
-                          {trainingStatusMsg}
-                        </p>
-                      )}
+                <div className="card p-6">
+                  <h3 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                    <Cpu className="w-5 h-5 text-amber-600" /> {t.trainingTitle}
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+                    Re-train Random Forest model with latest uploaded dataset
+                  </p>
+                  <div className="bg-gray-50 rounded-2xl p-4 mb-4 border border-gray-100">
+                    <div className="flex items-center justify-between text-sm font-semibold">
+                      <span className="text-gray-600">{t.modelStatus}</span>
+                      <span className={isTraining ? 'text-amber-600' : 'text-green-600'}>
+                        {isTraining ? '⚡ ' + t.modelRunning : '✓ ' + t.modelIdle}
+                      </span>
                     </div>
-
-                    <button 
-                      onClick={handleRetrainModel}
-                      disabled={isTraining}
-                      className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold py-2.5 rounded-xl transition flex items-center justify-center space-x-2 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
-                    >
-                      {isTraining ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Cpu className="w-4 h-4" />}
-                      <span>{t.trainModelBtn}</span>
-                    </button>
+                    {trainingStatusMsg && <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">{trainingStatusMsg}</p>}
                   </div>
+                  <button onClick={handleRetrainModel} disabled={isTraining}
+                    className="w-full py-3 rounded-xl font-semibold text-sm disabled:opacity-40 transition-all text-gray-900 flex items-center justify-center gap-2"
+                    style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }}>
+                    {isTraining ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Cpu className="w-4 h-4" />}
+                    {t.trainModelBtn}
+                  </button>
                 </div>
-
               </div>
 
-              {/* Logs / Prediction History */}
-              <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-                <div className="p-6 border-b border-slate-200">
-                  <h3 className="font-bold text-text-primary flex items-center space-x-2">
-                    <Database className="w-5 h-5 text-emerald-600" />
-                    <span>Run Prediction History Logs</span>
+              {/* History Table */}
+              <div className="card overflow-hidden">
+                <div className="p-5 border-b border-gray-100">
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <History className="w-5 h-5 text-green-600" /> Prediction History
                   </h3>
                 </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-[10px] font-bold text-text-secondary uppercase border-b border-slate-200">
-                        <th className="px-6 py-3">Timestamp</th>
-                        <th className="px-6 py-3">Soil (N-P-K)</th>
-                        <th className="px-6 py-3">Environment</th>
-                        <th className="px-6 py-3">pH</th>
-                        <th className="px-6 py-3">Result Recommendation</th>
-                        <th className="px-6 py-3 text-right">Confidence</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-xs font-medium">
-                      {adminPredictions.map((pred) => (
-                        <tr key={pred.id} className="hover:bg-slate-50/50">
-                          <td className="px-6 py-4 text-text-secondary">{pred.created_at?.replace('T', ' ').substring(0, 16)}</td>
-                          <td className="px-6 py-4 text-text-primary">
-                            N:{pred.n} • P:{pred.p} • K:{pred.k}
-                          </td>
-                          <td className="px-6 py-4 text-text-secondary">
-                            {pred.temperature}°C • {pred.humidity}% H2O • {pred.rainfall}mm
-                          </td>
-                          <td className="px-6 py-4 text-text-primary">{pred.ph}</td>
-                          <td className="px-6 py-4 font-bold text-emerald-700">{pred.recommended_crop}</td>
-                          <td className="px-6 py-4 text-right font-bold text-text-primary">{pred.confidence}%</td>
+                {adminPredictions.length === 0 ? (
+                  <div className="p-12 text-center text-gray-400">
+                    <Database className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="font-medium">No predictions yet</p>
+                    <p className="text-sm">Run your first analysis to see logs here</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="text-[11px] font-bold text-gray-400 uppercase bg-gray-50 border-b border-gray-100">
+                          <th className="px-5 py-3">Time</th>
+                          <th className="px-5 py-3">N-P-K</th>
+                          <th className="px-5 py-3 hidden md:table-cell">Temp / Humidity</th>
+                          <th className="px-5 py-3">Crop</th>
+                          <th className="px-5 py-3 text-right">Confidence</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50 text-sm">
+                        {adminPredictions.map((pred) => (
+                          <tr key={pred.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-5 py-3.5 text-gray-400 text-xs whitespace-nowrap">{pred.created_at?.replace('T', ' ').substring(0, 16)}</td>
+                            <td className="px-5 py-3.5 font-medium text-gray-700">{pred.n}·{pred.p}·{pred.k}</td>
+                            <td className="px-5 py-3.5 text-gray-500 hidden md:table-cell">{pred.temperature}°C · {pred.humidity}%</td>
+                            <td className="px-5 py-3.5 font-bold text-green-700">{pred.recommended_crop}</td>
+                            <td className="px-5 py-3.5 text-right font-bold text-gray-900">{pred.confidence}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-
             </div>
           )
 
         ) : (
-          /* Landing Page + Chat Search Area */
-          <div className="space-y-16 py-8">
-            
-            {/* Hero & AI Input */}
-            <div className="max-w-4xl mx-auto px-4 text-center space-y-8">
-              
-              <div className="space-y-4">
-                <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">
-                  AgriTech Intelligence 2026
-                </span>
-                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-text-primary leading-tight">
+          /* ========== LANDING PAGE ========== */
+          <div>
+
+            {/* ===== HERO SECTION ===== */}
+            <section className="hero-bg relative overflow-hidden">
+              <div className="max-w-4xl mx-auto px-4 pt-12 pb-8 text-center">
+
+                {/* Badge */}
+                <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 mb-6 animate-slide-up"
+                  style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)' }}>
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-glow" />
+                  <span className="text-xs font-bold text-green-700 tracking-wider uppercase">AI-Powered AgriTech 2026</span>
+                </div>
+
+                <h1 className="text-4xl md:text-6xl font-black tracking-tight text-gray-900 mb-5 leading-tight animate-slide-up"
+                  style={{ animationDelay: '0.1s' }}>
                   {t.heroTitle}
                 </h1>
-                <p className="text-base text-text-secondary max-w-xl mx-auto">
+                <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto mb-8 animate-slide-up" style={{ animationDelay: '0.2s' }}>
                   {t.heroSub}
                 </p>
-              </div>
 
-              {/* Chat Input Container */}
-              <div 
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleFileDrop}
-                className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-100 p-4 max-w-2xl mx-auto space-y-3 relative group focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition duration-300"
-              >
-                
-                {/* File Drop Active indicator */}
-                {selectedFile && (
-                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-sm text-emerald-800">
-                    <div className="flex items-center space-x-2">
-                      {selectedFile.name.endsWith('.csv') ? (
-                        <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                      ) : selectedFile.name.endsWith('.pdf') ? (
-                        <FileText className="w-5 h-5 text-emerald-600" />
-                      ) : selectedFile.name.match(/\.(jpg|jpeg|png)$/i) ? (
-                        <ImageIcon className="w-5 h-5 text-emerald-600" />
-                      ) : (
-                        <FileText className="w-5 h-5 text-emerald-600" />
-                      )}
-                      <span className="font-semibold">{selectedFile.name}</span>
-                      <span className="text-xs opacity-85">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+                {/* Stats Row */}
+                <div className="flex items-center justify-center gap-6 mb-10 animate-slide-up" style={{ animationDelay: '0.3s' }}>
+                  {[['99%', 'Accuracy'], ['22+', 'Crops'], ['15K+', 'Farms']].map(([val, label]) => (
+                    <div key={label} className="text-center">
+                      <div className="text-xl font-black text-gray-900">{val}</div>
+                      <div className="text-xs font-semibold text-gray-400">{label}</div>
                     </div>
-                    <button 
-                      onClick={() => setSelectedFile(null)}
-                      className="text-emerald-700 hover:text-emerald-950"
-                    >
-                      <X className="w-4 h-4" />
+                  ))}
+                </div>
+
+                {/* ===== MAIN INPUT CARD ===== */}
+                <div className="card p-4 max-w-2xl mx-auto mb-4 animate-slide-up" style={{ animationDelay: '0.35s' }}
+                  onDragOver={(e) => e.preventDefault()} onDrop={handleFileDrop}>
+
+                  {/* File attached indicator */}
+                  {selectedFile && (
+                    <div className="flex items-center justify-between rounded-2xl p-3 mb-3 text-sm font-medium text-green-800"
+                      style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                      <div className="flex items-center gap-2">
+                        {selectedFile.name.match(/\.(jpg|jpeg|png)$/i) ? <ImageIcon className="w-4 h-4 text-green-600" /> : <FileText className="w-4 h-4 text-green-600" />}
+                        <span className="truncate max-w-[200px]">{selectedFile.name}</span>
+                        <span className="text-green-600 opacity-70 text-xs">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                      <button onClick={() => setSelectedFile(null)} className="text-green-700 hover:text-green-900 ml-2">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <textarea rows={3}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder={t.placeholder}
+                    disabled={selectedFile !== null}
+                    className="w-full resize-none bg-transparent text-gray-900 text-base placeholder-gray-400 outline-none disabled:opacity-50 px-1"
+                  />
+
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-1">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-500 hover:text-green-700 hover:bg-green-50 transition-all">
+                        <Upload className="w-4 h-4" /> <span className="hidden sm:inline">Upload File</span>
+                      </button>
+                      <input type="file" ref={fileInputRef} onChange={handleFileChange}
+                        accept=".pdf,.csv,.txt,.png,.jpg,.jpeg" className="hidden" />
+                      <span className="text-xs text-gray-400 hidden sm:block">or drag & drop</span>
+                    </div>
+                    <button onClick={runPrediction} className="btn-primary py-2.5 px-5 text-sm">
+                      {t.ctaButton} <ArrowRight className="w-4 h-4" />
                     </button>
+                  </div>
+                </div>
+
+                {/* Error messages */}
+                {nlpError && (
+                  <div className="max-w-2xl mx-auto mb-4 text-red-700 text-sm font-medium bg-red-50 p-4 rounded-2xl border border-red-100 text-left animate-slide-up">
+                    ⚠️ {nlpError}
+                  </div>
+                )}
+                {fileError && (
+                  <div className="max-w-2xl mx-auto mb-4 text-red-700 text-sm font-medium bg-red-50 p-4 rounded-2xl border border-red-100 animate-slide-up">
+                    ⚠️ {fileError}
                   </div>
                 )}
 
-                {/* Main NLP Input Text area */}
-                <textarea 
-                  rows={3}
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder={t.placeholder}
-                  disabled={selectedFile !== null}
-                  className="w-full resize-none bg-transparent placeholder-text-light text-text-primary focus:outline-none text-base disabled:opacity-50"
-                />
-
-                {/* Bottom Bar: File attachment & CTA */}
-                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                  <div className="flex items-center space-x-2">
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      title="Attach CSV, PDF, Image"
-                      className="p-2.5 rounded-full hover:bg-slate-100 text-text-secondary transition"
-                    >
-                      <Upload className="w-5 h-5" />
-                    </button>
-                    <span className="text-xs text-text-light hidden sm:inline">{t.orUpload}</span>
-                    <input 
-                      type="file" 
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      accept=".pdf,.csv,.txt,.png,.jpg,.jpeg"
-                      className="hidden"
-                    />
+                {/* Example chips */}
+                <div className="max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: '0.4s' }}>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{t.examples}</p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {[
+                      'N=90 P=42 K=43 Temp=22 Humidity=82 pH=6.5 Rain=203',
+                      'nitrogen 20, phosphorus 60, potash 80, temp 18, humidity 15, pH 7.2, rain 50',
+                      'potassium 200, N 20, P 125, temp 22, humidity 91, ph 6, rainfall 110'
+                    ].map((ex, idx) => (
+                      <button key={idx} onClick={() => handleExampleClick(ex)}
+                        className="text-xs text-gray-600 bg-white rounded-xl border border-gray-200 px-3 py-2 hover:border-green-400 hover:text-green-700 hover:bg-green-50/30 transition-all text-left">
+                        {ex.substring(0, 45)}...
+                      </button>
+                    ))}
                   </div>
-
-                  <button 
-                    onClick={runPrediction}
-                    className="bg-primary text-white font-semibold px-6 py-2.5 rounded-xl flex items-center space-x-2 hover:bg-primary-hover active:scale-[0.98] transition shadow-md shadow-emerald-500/15"
-                  >
-                    <span>{t.ctaButton}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
                 </div>
-
               </div>
+            </section>
 
-              {/* Errors Panel */}
-              {nlpError && (
-                <div className="max-w-2xl mx-auto text-red-600 font-semibold text-sm bg-red-50 p-4 rounded-2xl border border-red-100">
-                  {nlpError}
-                </div>
-              )}
-              {fileError && (
-                <div className="max-w-2xl mx-auto text-red-600 font-semibold text-sm bg-red-50 p-4 rounded-2xl border border-red-100">
-                  {fileError}
-                </div>
-              )}
+            {/* ===== HOW IT WORKS ===== */}
+            <section className="max-w-6xl mx-auto px-4 py-16">
+              <div className="text-center mb-12">
+                <span className="chip bg-blue-50 text-blue-700 mb-4">Simple Process</span>
+                <h2 className="text-3xl md:text-4xl font-black text-gray-900">{t.howItWorks}</h2>
+              </div>
+              <div className="grid md:grid-cols-3 gap-6">
+                {[
+                  { step: '01', emoji: '💬', title: 'Describe Your Farm', desc: 'Type soil values in plain language or drop a PDF/CSV lab report directly into the chat.' },
+                  { step: '02', emoji: '🤖', title: 'AI Processes Data', desc: 'Our FastAPI engine extracts your parameters and runs them through a 99% accurate Random Forest model.' },
+                  { step: '03', emoji: '🌾', title: 'Get Smart Report', desc: 'Receive crop recommendation with yield, weather compatibility, and downloadable PDF advisory.' },
+                ].map((s, idx) => (
+                  <div key={idx} className="card p-6 gradient-border relative overflow-hidden">
+                    <div className="text-5xl font-black text-gray-100 absolute top-4 right-4">{s.step}</div>
+                    <div className="text-4xl mb-4">{s.emoji}</div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">{s.title}</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-              {/* Examples Suggestions */}
-              <div className="max-w-2xl mx-auto text-center space-y-2">
-                <span className="text-xs font-semibold text-text-light uppercase tracking-wider block">
-                  {t.examples}
-                </span>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  {[
-                    "N=90 P=42 K=43 Temp=22 Humidity=82 pH=6.5 Rain=203",
-                    "nitrogen 20, phosphorus 60, potash 80, temp 18, humidity 15, pH 7.2, rain 50",
-                    "My soil reports potassium 200, N 20, P 125, temperature 22, humidity 91, ph 6, rainfall 110"
-                  ].map((ex, idx) => (
-                    <button 
-                      key={idx}
-                      onClick={() => handleExampleClick(ex)}
-                      className="text-xs text-text-secondary bg-white px-3 py-1.5 rounded-lg border border-slate-200 hover:border-primary hover:bg-emerald-50/20 hover:text-emerald-700 transition"
-                    >
-                      {ex.substring(0, 48)}...
-                    </button>
+            {/* ===== FEATURES GRID ===== */}
+            <section className="max-w-6xl mx-auto px-4 pb-16">
+              <div className="text-center mb-12">
+                <span className="chip bg-green-50 text-green-700 mb-4">Capabilities</span>
+                <h2 className="text-3xl md:text-4xl font-black text-gray-900">{t.featTitle}</h2>
+                <p className="text-gray-500 mt-3 max-w-md mx-auto">{t.featSub}</p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {[
+                  { title: t.feat1Title, desc: t.feat1Desc, icon: Sprout, emoji: '🌱', color: '#22c55e', bg: '#f0fdf4' },
+                  { title: t.feat2Title, desc: t.feat2Desc, icon: Database, emoji: '📊', color: '#8b5cf6', bg: '#f5f3ff' },
+                  { title: t.feat3Title, desc: t.feat3Desc, icon: Globe, emoji: '🌍', color: '#3b82f6', bg: '#eff6ff' },
+                  { title: t.feat4Title, desc: t.feat4Desc, icon: Cpu, emoji: '⚡', color: '#f59e0b', bg: '#fffbeb' },
+                  { title: t.feat5Title, desc: t.feat5Desc, icon: Activity, emoji: '📈', color: '#ef4444', bg: '#fef2f2' },
+                  { title: t.feat6Title, desc: t.feat6Desc, icon: TrendingUp, emoji: '💰', color: '#8b5cf6', bg: '#f5f3ff' },
+                ].map((f, i) => (
+                  <div key={i} className="card p-5 gradient-border">
+                    <div className="text-3xl mb-3">{f.emoji}</div>
+                    <h3 className="font-bold text-gray-900 text-sm mb-1.5">{f.title}</h3>
+                    <p className="text-xs text-gray-500 leading-relaxed line-clamp-3">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* ===== STATS BANNER ===== */}
+            <section className="max-w-6xl mx-auto px-4 pb-16">
+              <div className="rounded-3xl p-8 md:p-12 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0b1a0c 0%, #14532d 50%, #065f46 100%)' }}>
+                <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle at 30% 50%, #22c55e 0%, transparent 60%)' }} />
+                <div className="relative grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                  {[['15,000+', 'Farms Analyzed Globally', '🌍'],
+                    ['99.09%', 'Prediction Accuracy', '🎯'],
+                    ['22+', 'Crop Varieties Supported', '🌾']
+                  ].map(([val, label, emoji]) => (
+                    <div key={label}>
+                      <div className="text-5xl mb-2">{emoji}</div>
+                      <div className="text-4xl font-black text-green-400 mb-1">{val}</div>
+                      <div className="text-sm text-gray-400 font-medium">{label}</div>
+                    </div>
                   ))}
                 </div>
               </div>
-
-            </div>
-
-            {/* Features Grid */}
-            <section className="max-w-6xl mx-auto px-4 py-8">
-              <div className="text-center max-w-xl mx-auto mb-12 space-y-2">
-                <h2 className="text-3xl font-extrabold text-text-primary tracking-tight">
-                  {t.featTitle}
-                </h2>
-                <p className="text-sm text-text-secondary">
-                  {t.featSub}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                  { title: t.feat1Title, desc: t.feat1Desc, icon: Sprout, color: "bg-emerald-50 text-emerald-600" },
-                  { title: t.feat2Title, desc: t.feat2Desc, icon: Database, color: "bg-indigo-50 text-indigo-600" },
-                  { title: t.feat3Title, desc: t.feat3Desc, icon: Globe, color: "bg-blue-50 text-blue-600" },
-                  { title: t.feat4Title, desc: t.feat4Desc, icon: Cpu, color: "bg-amber-50 text-amber-600" },
-                  { title: t.feat5Title, desc: t.feat5Desc, icon: Activity, color: "bg-rose-50 text-rose-600" },
-                  { title: t.feat6Title, desc: t.feat6Desc, icon: TrendingUp, color: "bg-violet-50 text-violet-600" }
-                ].map((f, i) => (
-                  <div key={i} className="bg-white border border-slate-200 rounded-3xl p-6 hover-premium">
-                    <div className={`p-3 rounded-2xl inline-block mb-4 ${f.color}`}>
-                      <f.icon className="w-6 h-6" />
-                    </div>
-                    <h3 className="font-bold text-text-primary text-lg mb-2">{f.title}</h3>
-                    <p className="text-sm text-text-secondary leading-relaxed">{f.desc}</p>
-                  </div>
-                ))}
-              </div>
             </section>
 
-            {/* How It Works Section */}
-            <section className="max-w-6xl mx-auto px-4 py-8 bg-white border border-slate-200 rounded-3xl shadow-sm">
-              <div className="text-center max-w-xl mx-auto mb-12">
-                <h2 className="text-3xl font-extrabold text-text-primary tracking-tight mb-2">
-                  {t.howItWorks}
-                </h2>
-                <p className="text-sm text-text-secondary">
-                  Our system evaluates soil parameters against agricultural records to compute accuracy-driven yields.
-                </p>
+            {/* ===== TESTIMONIALS ===== */}
+            <section className="max-w-6xl mx-auto px-4 pb-16">
+              <div className="text-center mb-10">
+                <span className="chip bg-amber-50 text-amber-700 mb-4">⭐ Reviews</span>
+                <h2 className="text-3xl font-black text-gray-900">{t.testimonials}</h2>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="grid md:grid-cols-2 gap-5">
                 {[
-                  { step: "01", title: "Input Parameters", desc: "Describe soil composition in the natural chat bar or drop laboratory PDF/CSV sheets directly." },
-                  { step: "02", title: "Cloud AI Processing", desc: "Our FastAPI engine extracts metrics and computes crop suitability against Random Forest trees." },
-                  { step: "03", title: "Harvest Smart Report", desc: "Review complete details on expected yields, optimal weather compatibility, and download advisory PDFs." }
-                ].map((s, idx) => (
-                  <div key={idx} className="space-y-4 text-center md:text-left">
-                    <span className="text-4xl font-extrabold bg-gradient-to-r from-emerald-500 to-green-500 bg-clip-text text-transparent block">
-                      {s.step}
-                    </span>
-                    <h3 className="text-lg font-bold text-text-primary">{s.title}</h3>
-                    <p className="text-sm text-text-secondary leading-relaxed">{s.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* Statistics Dashboard Banner */}
-            <section className="max-w-6xl mx-auto px-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-                {[
-                  { val: "15,000+", label: "Farms Recommended" },
-                  { val: "99.09%", label: "Classification Accuracy" },
-                  { val: "22+", label: "Seed Varieties Tuned" }
-                ].map((stat, idx) => (
-                  <div key={idx} className="bg-slate-900 text-white rounded-3xl p-8 border border-slate-800 shadow-lg">
-                    <span className="text-4xl font-extrabold text-primary block mb-2">{stat.val}</span>
-                    <span className="text-xs uppercase font-bold tracking-wider text-slate-400">{stat.label}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* Customer Testimonials */}
-            <section className="max-w-6xl mx-auto px-4 py-8">
-              <div className="text-center max-w-xl mx-auto mb-12">
-                <h2 className="text-3xl font-extrabold text-text-primary tracking-tight">
-                  {t.testimonials}
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[
-                  { quote: "SmartCrop AI changed our sugarcane and coffee crop rotation yield planning. We achieved 24% higher crop return within one seasonal cycle.", author: "Rajesh Kumar", role: "Coffee Estate Manager, Western Ghats" },
-                  { quote: "The natural language interface makes soil analytics accessible to small-scale farmers in Tamil Nadu. We just speak our values and get immediate advice.", author: "Anjali Selvam", role: "Agronomy Student, TNAU Coimbatore" }
+                  { quote: 'SmartCrop AI changed our sugarcane and coffee crop rotation. We achieved 24% higher crop return within one seasonal cycle.', author: 'Rajesh Kumar', role: 'Coffee Estate Manager, Western Ghats', rating: 5 },
+                  { quote: 'The natural language interface makes soil analytics accessible to small-scale farmers in Tamil Nadu. Just speak values and get immediate advice.', author: 'Anjali Selvam', role: 'Agronomy Student, TNAU Coimbatore', rating: 5 },
                 ].map((item, idx) => (
-                  <div key={idx} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-                    <p className="text-sm text-text-secondary leading-relaxed italic mb-6">
-                      "{item.quote}"
-                    </p>
-                    <div>
-                      <h4 className="font-bold text-text-primary text-sm">{item.author}</h4>
-                      <span className="text-xs text-text-light">{item.role}</span>
+                  <div key={idx} className="card p-6">
+                    <div className="flex gap-1 mb-4">
+                      {Array.from({ length: item.rating }).map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-600 leading-relaxed italic mb-5">"{item.quote}"</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">
+                        {item.author[0]}
+                      </div>
+                      <div>
+                        <div className="font-bold text-gray-900 text-sm">{item.author}</div>
+                        <div className="text-xs text-gray-400">{item.role}</div>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </section>
 
-            {/* FAQ Accordion */}
-            <section className="max-w-3xl mx-auto px-4 py-8">
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-extrabold text-text-primary tracking-tight flex items-center justify-center space-x-2">
-                  <HelpCircle className="w-7 h-7 text-primary" />
-                  <span>{t.faq}</span>
-                </h2>
+            {/* ===== FAQ ===== */}
+            <section className="max-w-3xl mx-auto px-4 pb-16">
+              <div className="text-center mb-10">
+                <span className="chip bg-indigo-50 text-indigo-700 mb-4">❓ FAQ</span>
+                <h2 className="text-3xl font-black text-gray-900">{t.faq}</h2>
               </div>
-
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {[
-                  { q: "How does the AI process my natural text?", a: "We run regex parser heuristics in the FastAPI server to search for numbers preceding or following agricultural keywords (N, P, K, pH, rainfall, temp, humidity)." },
-                  { q: "How accurate is the Random Forest Classifier?", a: "The classifier model reaches 99.09% cross-validation accuracy on our seeded dataset. It runs multi-depth tree decisions based on Scikit-Learn." },
-                  { q: "Can I run the system in local regional languages?", a: "Yes, our frontend architecture natively maps translations in English, Hindi (हिंदी), and Tamil (தமிழ்)." }
+                  { q: 'How does the AI process my natural text?', a: 'We run smart regex parser heuristics in FastAPI to identify agricultural keywords (N, P, K, pH, rainfall, temp, humidity) and extract the associated numeric values from your description.' },
+                  { q: 'How accurate is the Random Forest Classifier?', a: 'The classifier achieves 99.09% cross-validation accuracy on our seeded dataset of 2,200+ records across 22 crop varieties using multi-depth tree decisions.' },
+                  { q: 'Can I use regional languages?', a: 'Yes! Our frontend natively supports English, Hindi (हिंदी), and Tamil (தமிழ்) with full translations across all UI elements.' },
+                  { q: 'Is my farm data kept private?', a: 'Absolutely. Your soil parameters are processed in real-time and only anonymized prediction logs are stored. No personal data is collected or shared.' },
                 ].map((faq, idx) => (
-                  <div key={idx} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                    <h4 className="font-bold text-text-primary text-sm mb-2">{faq.q}</h4>
-                    <p className="text-xs text-text-secondary leading-relaxed">{faq.a}</p>
+                  <div key={idx} className="card overflow-hidden">
+                    <button onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+                      className="w-full flex items-center justify-between p-5 text-left hover:bg-gray-50/50 transition-colors">
+                      <span className="font-semibold text-gray-900 text-sm pr-4">{faq.q}</span>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${activeFaq === idx ? 'rotate-180' : ''}`} />
+                    </button>
+                    {activeFaq === idx && (
+                      <div className="px-5 pb-5 animate-slide-up">
+                        <p className="text-sm text-gray-500 leading-relaxed">{faq.a}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1375,17 +961,45 @@ export default function App() {
         )}
       </main>
 
-      {/* 3. Footer */}
-      <footer className="bg-white border-t border-slate-200 py-8">
-        <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-semibold text-text-light">
-          <span>{t.footerRights}</span>
-          <div className="flex items-center space-x-4">
-            <span className="hover:text-text-primary cursor-pointer">Security Policy</span>
-            <span>•</span>
-            <span className="hover:text-text-primary cursor-pointer">API Integration Docs</span>
+      {/* ===== FOOTER ===== */}
+      <footer className="border-t border-gray-100 bg-white py-8">
+        <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
+              <Sprout className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-sm font-bold text-gray-700">SmartCrop AI</span>
+          </div>
+          <p className="text-xs text-gray-400 font-medium">{t.footerRights}</p>
+          <div className="flex items-center gap-4 text-xs font-semibold text-gray-400">
+            <span className="hover:text-green-600 cursor-pointer transition-colors">Privacy Policy</span>
+            <span>·</span>
+            <span className="hover:text-green-600 cursor-pointer transition-colors">API Docs</span>
           </div>
         </div>
       </footer>
+
+      {/* ===== MOBILE BOTTOM NAV ===== */}
+      <div className="mobile-nav md:hidden">
+        <button onClick={() => { setPage('landing'); setResult(null); }}
+          className={`flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-all ${page === 'landing' ? 'text-green-600' : 'text-gray-400'}`}>
+          <Home className="w-5 h-5" />
+          <span className="text-[10px] font-semibold">Home</span>
+        </button>
+        <button onClick={runPrediction}
+          className="flex flex-col items-center gap-1 -mt-4">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl"
+            style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
+            <Sprout className="w-7 h-7 text-white" />
+          </div>
+          <span className="text-[10px] font-semibold text-green-700 mt-0.5">Analyze</span>
+        </button>
+        <button onClick={() => setPage('admin')}
+          className={`flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-all ${page === 'admin' ? 'text-green-600' : 'text-gray-400'}`}>
+          <Settings className="w-5 h-5" />
+          <span className="text-[10px] font-semibold">Admin</span>
+        </button>
+      </div>
 
     </div>
   );
