@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Sprout, Globe, ArrowRight, Check, Download, RefreshCw,
   BookOpen, User, Lock, LogOut, Database, Cpu, TrendingUp,
-  PieChart, HelpCircle, X, Upload, FileText, Image as ImageIcon,
+  PieChart, X, Upload, FileText, Image as ImageIcon,
   FileSpreadsheet, Activity, Leaf, Wind, Droplets, Thermometer,
   FlaskConical, CloudRain, ChevronDown, Star, Zap, BarChart3,
   Menu, Home, Settings, History
