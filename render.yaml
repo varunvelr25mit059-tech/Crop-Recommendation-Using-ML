@@ -1,0 +1,21 @@
+# render.yaml
+services:
+  # FastAPI Backend Service
+  - type: web
+    name: smartcrop-ai-backend
+    env: python
+    buildCommand: "pip install -r backend/requirements.txt && python ml/generate_dataset.py && python ml/train.py"
+    startCommand: "python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Set neon or local database url in render settings
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: ADMIN_EMAIL
+        value: "admin@smartcrop.ai"
+      - key: ADMIN_PASSWORD
+        value: "AdminSmartCrop2026!"
