@@ -12,7 +12,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://crop-recommendation-using-ml.onrender.com/api/$1"
+      "dest": "https://smartcrop-ai-backend-x8f2.onrender.com/api/$1"
     },
     {
       "src": "/[^.]*",
