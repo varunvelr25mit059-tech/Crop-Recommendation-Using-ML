@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://smartcrop-ai-backend-x8f2.onrender.com/api/$1"
+      "destination": "https://crop-recommendation-using-ml.onrender.com/api/$1"
     },
     {
       "source": "/(.*)",
